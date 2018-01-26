@@ -89,7 +89,8 @@ def makeWebhookResult(data):
     item = channel.get('item')
     location = channel.get('location')
     units = channel.get('units')
-    if (location is None) or (item is None) or (units is None):
+    atm	= channel.get('atmosphere')
+    if (location is None) or (item is None) or (units is None) or (atm is none):
         return {}
 
     condition = item.get('condition')
@@ -107,7 +108,7 @@ def makeWebhookResult(data):
 
 	
 	
-    speech ="prova prova Today the weather in " + location.get('city') + ": " + condition.get('text') + \
+    speech ="pressione atmosferica "+atm+" Today the weather in " + location.get('city') + ": " + condition.get('text') + \
              ", And the temperature is " + condition.get('temp') + " " + units.get('temperature')
 
     print("Response:")
