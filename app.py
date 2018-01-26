@@ -93,6 +93,10 @@ def makeWebhookResult(data):
     if (location is None) or (item is None) or (units is None) or (atm is none):
         return {}
 
+    umidita = atm.get('humidity')
+    if umidita is None:
+        return {}
+
     condition = item.get('condition')
     if condition is None:
         return {}
@@ -108,7 +112,7 @@ def makeWebhookResult(data):
 
 	
 	
-    speech ="pressione atmosferica "+atm+" Today the weather in " + location.get('city') + ": " + condition.get('text') + \
+    speech ="l'umidita e questa: "+umidita+" Today the weather in " + location.get('city') + ": " + condition.get('text') + \
              ", And the temperature is " + condition.get('temp') + " " + units.get('temperature')
 
     print("Response:")
