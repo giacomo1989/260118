@@ -1,38 +1,29 @@
-# -*- coding:utf8 -*-
-# !/usr/bin/env python
-# Copyright 2017 Google Inc. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+#!/usr/bin/env python
 
 from __future__ import print_function
-from future.standard_library import install_aliases
-install_aliases()
-
-from urllib.parse import urlparse, urlencode
-from urllib.request import urlopen, Request
-from urllib.error import HTTPError
-
+from future import standard_library
+standard_library.install_aliases()
+import urllib.request, urllib.parse, urllib.error
+from urllib.request import urlopen
 import json
 import os
 
+
+
 from flask import Flask
 from flask import request
+
+#from fbmq import Page
+#import requests
+#from django.views.decorators.csrf import csrf_exempt
+
 from flask import make_response
 
 # Flask app should start in global layout
 app = Flask(__name__)
 
-
+	
+	
 @app.route('/webhook', methods=['POST'])
 def webhook():
     req = request.get_json(silent=True, force=True)
@@ -48,68 +39,243 @@ def webhook():
     r.headers['Content-Type'] = 'application/json'
     return r
 
-
 def processRequest(req):
-    if req.get("result").get("action") != "yahooWeatherForecast":
-        return {}
-    baseurl = "https://query.yahooapis.com/v1/public/yql?"
-    yql_query = makeYqlQuery(req)
-    if yql_query is None:
-        return {}
-    yql_url = baseurl + urlencode({'q': yql_query}) + "&format=json"
-    result = urlopen(yql_url).read()
-    data = json.loads(result)
-    res = makeWebhookResult(data)
-    return res
+	city="Barcelona"
+	baseurl = "https://query.yahooapis.com/v1/public/yql?"
+	yql_query = "select * from weather.forecast where woeid in (select woeid from geo.places(1) where text= '"+ city+"')"
+	yql_url = baseurl + urllib.urlencode({'q':yql_query}) + "&format=json"
+	result1 = urlopen(yql_url).read()
+    	data 	= json.loads(result1)
+	query 	= data.get('query')
+    	result2 = query.get('results')
+    	channel = result2.get('channel')
+    	item 	= channel.get('item')
+	date	=item["forecast"][0].get("date") #in formato 29 Jun 2017
+	day	=item["forecast"][0].get("day")
+						
+					
+					#SI DANNI STRADALI
+	if req.get("result").get("action") == "forniture-demage.forniture-demage-yes":
+		result = req.get("result")
+		parameters = result.get("parameters")
+		
+		
+					#NO FERITI
+		if req.get("result")["contexts"][0]["name"]=="domanda3":
+			licenseplate = 		req.get("result")["contexts"][2]["parameters"].get("number-sequence")
+			dateloss = 		req.get("result")["contexts"][2]["parameters"].get("date")
+			timeloss = 		req.get("result")["contexts"][2]["parameters"].get("time")
+			cityloss = 		req.get("result")["contexts"][2]["parameters"].get("geo-city")
+			name_other_driver = 	req.get("result")["contexts"][2]["parameters"].get("namedriver2")
+			surname_other_driver = 	req.get("result")["contexts"][2]["parameters"].get("surnamedriver2")
+			datedriver2 = 		req.get("result")["contexts"][2]["parameters"].get("date-otherdriver")
+			driver2_license_number =req.get("result")["contexts"][2]["parameters"].get("license_driving")
+			driver2_license_plate = req.get("result")["contexts"][2]["parameters"].get("license-plate")
+			ass = 			req.get("result")["contexts"][2]["parameters"].get("assicurazione")
+			danni=			req.get("result")["contexts"][1]["parameters"].get("forniture-demage")
+			testo=			req.get("result")["contexts"][1]["parameters"].get("any")
+			
+			license = "THANK YOU FOR YOUR TIME.\nTHIS IS YOUR FINAL REPORT.\nMAKE SURE THAT ALL THE INFORMATION IS CORRECT\n\n\n"+day+", "+date+"\n\nDear costumer this is the REPORT of you car accident:\n-LICENSE PLATE NUMBER: "+licenseplate+"\n-DATE OF THE ACCIDENT: "+dateloss+"\n-TIME OF THE ACCIDENT: "+timeloss+"\n-PLACE OF THE ACCIDENT: "+cityloss+"\nhas been correct registered.\n\nPlease use claim no. 12345 for reference" 
+			important="\n\n******** IMPORTANT ********\n\nThe schedule of the third party driver involved in the accident is:\n-NAME: "+name_other_driver+"\n-SURNAME: "+surname_other_driver+"\n-DATE OF BIRTH: "+datedriver2+"\n-LICENSE NUMBER: "+driver2_license_number+"\n-LICENSE PLATE NUMBER: "+driver2_license_plate+"\n-INSURANCE: "+ass
+			#funziona posizione=" posizione 0 e "+req.get("result")["contexts"][0]["name"]+"\nposizione 1 "+req.get("result")["contexts"][1]["name"]+ "posizione 2 "+req.get("result")["contexts"][2]["name"]+" facciamo prova e vediamo se alcuni dati inseriti vanno bene "+name_other_driver+" "+surname_other_driver+" "+cityloss
+						#SI POLIZIA
+			if len(req.get("result")["contexts"][1]["parameters"]) > 4:#>2: se non c'e la entity any
+				Ndenuncia = 	req.get("result")["contexts"][1]["parameters"].get("complain-number")
+				agentID = 	req.get("result")["contexts"][1]["parameters"].get("agent-id")
+				#str(len(req.get("result")["contexts"][1]["parameters"]))
+				extra2="\nThere were not injured.\nThe police have been called. The complain "+Ndenuncia+" by Agent "+agentID+" was properly loaded.\nThere were street forniture demages:\n-"+danni
+				prova=license+important+extra2+"\n\n******* DECLARATION *******\n\nThis is your personal declaration about the accident:\n"+" "+testo
+				res = makeWebhookResult(prova)
+				return res
+						#NO POLIZIA
+			elif len(req.get("result")["contexts"][1]["parameters"]) == 4:#==2: se non c'e la entity any
+				extra1="\nThere were not injured.\nThe police have not been called.\nThere were street forniture demages:\n-"+danni
+				prova1=license+important+extra1+"\n\n******* DECLARATION *******\n\nThis is your personal declaration about the accident:\n"+" "+testo
+				res = makeWebhookResult(prova1)
+				return res
+					#SI FERITI
+		if req.get("result")["contexts"][0]["name"]=="posicion":
+			licenseplate = 		req.get("result")["contexts"][4]["parameters"].get("number-sequence")
+			dateloss = 		req.get("result")["contexts"][4]["parameters"].get("date")
+			timeloss = 		req.get("result")["contexts"][4]["parameters"].get("time")
+			cityloss = 		req.get("result")["contexts"][4]["parameters"].get("geo-city")
+			name_other_driver = 	req.get("result")["contexts"][4]["parameters"].get("namedriver2")
+			surname_other_driver = 	req.get("result")["contexts"][4]["parameters"].get("surnamedriver2")
+			datedriver2 = 		req.get("result")["contexts"][4]["parameters"].get("date-otherdriver")
+			driver2_license_number =req.get("result")["contexts"][4]["parameters"].get("license_driving")
+			driver2_license_plate = req.get("result")["contexts"][4]["parameters"].get("license-plate")
+			ass = 			req.get("result")["contexts"][4]["parameters"].get("assicurazione")
+			danni=			req.get("result")["contexts"][3]["parameters"].get("forniture-demage")
+			testo=			req.get("result")["contexts"][1]["parameters"].get("any")
+			
+			name_injured = 		req.get("result")["contexts"][4]["parameters"].get("name-injiured")
+			surname_injured = 	req.get("result")["contexts"][4]["parameters"].get("surname-injured")
+			part_injured = 		req.get("result")["contexts"][4]["parameters"].get("injury-part")
+			seat = 			req.get("result")["contexts"][4]["parameters"].get("seat-position")
+			
+			license ="THANK YOU FOR YOUR TIME.\nTHIS IS YOUR FINAL REPORT.\nMAKE SURE THAT ALL THE INFORMATION IS CORRECT\n\n\n"+day+", "+date+"\n\nDear costumer this is the REPORT of you car accident:\n-LICENSE PLATE NUMBER: "+licenseplate+"\n-DATE OF THE ACCIDENT: "+dateloss+"\n-TIME OF THE ACCIDENT: "+timeloss+"\n-PLACE OF THE ACCIDENT: "+cityloss+"\nhas been correct registered.\n\nPlease use claim no. 12345 for reference" 
+			important="\n\n******** IMPORTANT ********\n\nThe schedule of the third party driver involved in the accident is:\n-NAME: "+name_other_driver+"\n-SURNAME: "+surname_other_driver+"\n-DATE OF BIRTH: "+datedriver2+"\n-LICENSE NUMBER: "+driver2_license_number+"\n-LICENSE PLATE NUMBER: "+driver2_license_plate+"\n-INSURANCE: "+ass
+			#injured=" vediamo se funziona."
+			injured="\n\n***** VERY IMPORTANT *****\n\nTHE PASSENGER: "+name_injured+" "+surname_injured+" was injured in the "+part_injured+".\n"+name_injured+" found himself in "+seat+"."
+			
+						#SI POLIZIA
+			if len(req.get("result")["contexts"][0]["parameters"]) >8: #> 6:se non c'e any
+				Ndenuncia = 	req.get("result")["contexts"][2]["parameters"].get("complain-number")
+				agentID = 	req.get("result")["contexts"][2]["parameters"].get("agent-id")
+				extra2="\nThe police have been called.\nThe complain number: "+Ndenuncia+" taken by Agent "+agentID+", was properly loaded.\nThere were street forniture demages:\n"+danni
+				prova=license+important+injured+extra2+"\n\n******* DECLARATION *******\n\nThis is your personal declaration about the accident:\n"+" "+testo
+				res = makeWebhookResult(prova)
+				return res
+						#NO POLIZIA
+			elif len(req.get("result")["contexts"][0]["parameters"]) ==8: #== 6:se non c'e any
+				extra1="\nThe police have not been called.\nThere were street forniture demages:\n"+danni
+				prova1=license+important+injured+extra1+"\n\n******* DECLARATION *******\n\nThis is your personal declaration about the accident:\n"+" "+testo
+				res = makeWebhookResult(prova1)
+				return res
 
+	
+				#NO DANNI STRADALI
+	if req.get("result").get("action") == "forniture-demage.forniture-demage-no":
+		result = req.get("result")
+		parameters = result.get("parameters")
+		testo=parameters.get("any")
+					#NO FERITI
+		if req.get("result")["contexts"][0]["name"]=="domanda3":
+			licenseplate = 		req.get("result")["contexts"][2]["parameters"].get("number-sequence")
+			dateloss = 		req.get("result")["contexts"][2]["parameters"].get("date")
+			timeloss = 		req.get("result")["contexts"][2]["parameters"].get("time")
+			cityloss = 		req.get("result")["contexts"][2]["parameters"].get("geo-city")
+			name_other_driver = 	req.get("result")["contexts"][2]["parameters"].get("namedriver2")
+			surname_other_driver = 	req.get("result")["contexts"][2]["parameters"].get("surnamedriver2")
+			datedriver2 = 		req.get("result")["contexts"][2]["parameters"].get("date-otherdriver")
+			driver2_license_number =req.get("result")["contexts"][2]["parameters"].get("license_driving")
+			driver2_license_plate = req.get("result")["contexts"][2]["parameters"].get("license-plate")
+			ass = 			req.get("result")["contexts"][2]["parameters"].get("assicurazione")
 
-def makeYqlQuery(req):
-    result = req.get("result")
-    parameters = result.get("parameters")
-    city = parameters.get("geo-city")
-    if city is None:
-        return None
+			license = "THANK YOU FOR YOUR TIME.\nTHIS IS YOUR FINAL REPORT.\nMAKE SURE THAT ALL THE INFORMATION IS CORRECT\n\n\n"+day+", "+date+"\n\nDear costumer this is the REPORT of you car accident:\n-LICENSE PLATE NUMBER: "+licenseplate+"\n-DATE OF THE ACCIDENT: "+dateloss+"\n-TIME OF THE ACCIDENT: "+timeloss+"\n-PLACE OF THE ACCIDENT: "+cityloss+"\nhas been correct registered.\n\nPlease use claim no. 12345 for reference" 
+			important="\n\n******** IMPORTANT ********\n\nThe schedule of the third party driver involved in the accident is:\n-NAME: "+name_other_driver+"\n-SURNAME: "+surname_other_driver+"\n-DATE OF BIRTH: "+datedriver2+"\n-LICENSE NUMBER: "+driver2_license_number+"\n-LICENSE PLATE NUMBER: "+driver2_license_plate+"\n-INSURANCE: "+ass
 
-    return "select * from weather.forecast where woeid in (select woeid from geo.places(1) where text='" + city + "')"
+			#speech=" posizione 0 e "+req.get("result")["contexts"][0]["name"]+"\nposizione 1 "+req.get("result")["contexts"][1]["name"]+"\nposizione 2 "+req.get("result")["contexts"][2]["name"]+"\nposizione 3 "#+req.get("result")["contexts"][3]["name"]+"\nposizione 4 "+req.get("result")["contexts"][4]["name"]
+			#res = makeWebhookResult(speech)
+			#return res
+						#SI POLIZIA
+			if len(req.get("result")["contexts"][1]["parameters"]) !=2: # != 0:
+				Ndenuncia = 	req.get("result")["contexts"][1]["parameters"].get("complain-number")
+				agentID = 	req.get("result")["contexts"][1]["parameters"].get("agent-id")
+				extra2="\nThere were not injured.\nThe police have been called.\nThe complain number: "+Ndenuncia+" taken by Agent "+agentID+", was properly loaded.\nThere were not street forniture demages."
+				#prova="11.51 "+str(len(req.get("result")["contexts"][1]["parameters"]))+license+important+extra2
+				prova=license+important+extra2+"\n\n******* DECLARATION *******\n\nThis is your personal declaration about the accident:\n"+" "+testo
+				res = makeWebhookResult(prova)
+				return res
+						#NO POLIZIA
+			elif len(req.get("result")["contexts"][1]["parameters"])==2:# == 0:
+				extra1="\nThere were not injured.\nThe police have not been called.\nThere were not street forniture demages."
+				prova1=license+important+extra1+"\n\n******* DECLARATION *******\n\nThis is your personal declaration about the accident:\n"+" "+testo
+				res = makeWebhookResult(prova1)
+				return res
+					#SI FERITI
+		if req.get("result")["contexts"][0]["name"]=="posicion":
+			licenseplate = 		req.get("result")["contexts"][4]["parameters"].get("number-sequence")
+			dateloss = 		req.get("result")["contexts"][4]["parameters"].get("date")
+			timeloss = 		req.get("result")["contexts"][4]["parameters"].get("time")
+			cityloss = 		req.get("result")["contexts"][4]["parameters"].get("geo-city")
+			name_other_driver = 	req.get("result")["contexts"][4]["parameters"].get("namedriver2")
+			surname_other_driver = 	req.get("result")["contexts"][4]["parameters"].get("surnamedriver2")
+			datedriver2 = 		req.get("result")["contexts"][4]["parameters"].get("date-otherdriver")
+			driver2_license_number =req.get("result")["contexts"][4]["parameters"].get("license_driving")
+			driver2_license_plate = req.get("result")["contexts"][4]["parameters"].get("license-plate")
+			ass = 			req.get("result")["contexts"][4]["parameters"].get("assicurazione")
+			
+			name_injured = 		req.get("result")["contexts"][4]["parameters"].get("name-injiured")
+			surname_injured = 	req.get("result")["contexts"][4]["parameters"].get("surname-injured")
+			part_injured = 		req.get("result")["contexts"][4]["parameters"].get("injury-part")
+			seat = 			req.get("result")["contexts"][4]["parameters"].get("seat-position")
+			
+			license = "THANK YOU FOR YOUR TIME.\nTHIS IS YOUR FINAL REPORT.\nMAKE SURE THAT ALL THE INFORMATION IS CORRECT\n\n\n"+day+", "+date+"\n\nDear costumer this is the REPORT of you car accident:\n-LICENSE PLATE NUMBER: "+licenseplate+"\n-DATE OF THE ACCIDENT: "+dateloss+"\n-TIME OF THE ACCIDENT: "+timeloss+"\n-PLACE OF THE ACCIDENT: "+cityloss+"\nhas been correct registered.\n\nPlease use claim no. 12345 for reference" 
+			important="\n\n******** IMPORTANT ********\n\nThe schedule of the third party driver involved in the accident is:\n-NAME: "+name_other_driver+"\n-SURNAME: "+surname_other_driver+"\n-DATE OF BIRTH: "+datedriver2+"\n-LICENSE NUMBER: "+driver2_license_number+"\n-LICENSE PLATE NUMBER: "+driver2_license_plate+"\n-INSURANCE: "+ass
+			#injured=" vediamo se funziona."
+			injured="\n\n***** VERY IMPORTANT *****\n\nTHE PASSENGER: "+name_injured+" "+surname_injured+" was injured in the "+part_injured+".\n"+name_injured+" found himself in "+seat+"."
+			#speech=" posizione 0 e "+req.get("result")["contexts"][0]["name"]+"\nposizione 1 "+req.get("result")["contexts"][1]["name"]+"\nposizione 2 "+req.get("result")["contexts"][2]["name"]+"\nposizione 3 "#+req.get("result")["contexts"][3]["name"]+"\nposizione 4 "+req.get("result")["contexts"][4]["name"]
+			#res = makeWebhookResult(speech)
+			#return res
+						#SI POLIZIA
+			if len(req.get("result")["contexts"][0]["parameters"]) > 6: #> 4:
+				Ndenuncia = 	req.get("result")["contexts"][2]["parameters"].get("complain-number")
+				agentID = 	req.get("result")["contexts"][2]["parameters"].get("agent-id")
+				extra2="\nThe police have been called.\nThe complain number: "+Ndenuncia+" taken by Agent "+agentID+", was properly loaded.\nThere were not street forniture demages."
+				prova=license+important+injured+extra2+"\n\n******* DECLARATION *******\n\nThis is your personal declaration about the accident:\n"+" "+testo
+				res = makeWebhookResult(prova)
+				return res
+						#NO POLIZIA
+			elif len(req.get("result")["contexts"][0]["parameters"]) == 6: #== 4:
+				extra1="\nThe police have not been called.\nThere were not street forniture demages."
+				prova1=license+important+injured+extra1+"\n\n******* DECLARATION *******\n\nThis is your personal declaration about the accident:\n"+" "+testo
+				res = makeWebhookResult(prova1)
+				return res
+	
+	if req.get("result").get("action") == "location.share":
+		#url = "https://raw.githubusercontent.com/giacomo1989/prova-import/master/pizzaimport.json"
+		#response = urllib.request.urlopen(url)
+		#content = response.read()
+		#data = json.loads(content.decode("utf8"))
+		
+		#lat = req.get("messagging")[0]["message"]["attachments"][0]["payload"]["coordinates"]["lat"]
+		#lng = event.message.attachments[0].payload.coordinates.long
+		
+		#result = req.get("result")
+		#parameters = result.get("parameters")
+		
+		#baseurl ="https://graph.facebook.com/me/messages?access_token=EAAODZBYcpPmkBAEj9EVraapZA3US5ZCo9A084X8AT8hqOiPRcUpecq7SLzEyvJKbibIjn8nLTtvUwCBmLOJQu7j8nIUEVGYX9D94PkDJ50ZCT5k0wUguYNQx3zgvs9ZATHmxOwFXn5snFR10rnwdxKXsyHdGV7bUXkYgrzWecMgZDZD"
+		#result1 = urlopen(baseurl).read()
+		#data = json.loads(result1)
+		
+		speech="11.52 ok il collegamento e attivo "
+		res = makeWebhookResult(speech)
+		return res
 
-
-def makeWebhookResult(data):
-    query = data.get('query')
-    if query is None:
-        return {}
-
-    result = query.get('results')
-    if result is None:
-        return {}
-
-    channel = result.get('channel')
-    if channel is None:
-        return {}
-
-    item = channel.get('item')
-    location = channel.get('location')
-    units = channel.get('units')
-    if (location is None) or (item is None) or (units is None):
-        return {}
-
-    condition = item.get('condition')
-    if condition is None:
-        return {}
-
-    # print(json.dumps(item, indent=4))
-
-    speech = "ore 14.54 Today the weather in " + location.get('city') + ": " + condition.get('text') + \
-             ", And the temperature is " + condition.get('temp') + " " + units.get('temperature')
-
+	if req.get("result").get("action") == "yahooWeatherForecast":
+		result 		= req.get("result")
+		parameters 	= result.get("parameters")
+		city 		= parameters.get("geo-city") 
+		
+		 
+		
+		baseurl = "https://query.yahooapis.com/v1/public/yql?"
+		yql_query = "select * from weather.forecast where woeid in (select woeid from geo.places(1) where text= '"+ city+"')"
+		yql_url = baseurl + urllib.urlencode({'q':yql_query}) + "&format=json"
+		result1 = urlopen(yql_url).read()
+    		data = json.loads(result1)
+		
+		query = data.get('query')
+    		result2 = query.get('results')
+    		channel = result2.get('channel')
+    		item = channel.get('item')
+    		date=item["forecast"][0].get("date")
+		location = channel.get('location')
+    		units = channel.get('units')
+    		condition = item.get('condition')
+		day	=item["forecast"][0].get("day")
+		atm	= channel.get('atmosphere')
+		umidita = atm.get('humidity')
+		
+		celsius=int(condition.get('temp'))
+		Gc=int((celsius-32)/1.8)
+       		
+		speech1 =day+", "+date+"\n\nToday in " + location.get('city') + ": " + condition.get('text') + ".\nThe temperature is " + str(Gc)+ " C with a humidity of "+umidita+"%"
+		res = makeWebhookResult(speech1)
+		return res
+		
+	
+def makeWebhookResult(speech):
     print("Response:")
     print(speech)
-
+	
     return {
         "speech": speech,
         "displayText": speech,
-        # "data": data,
+        # "data":[],
         # "contextOut": [],
-        "source": "apiai-weather-webhook-sample"
+        "source": "prueba"
     }
 
 
