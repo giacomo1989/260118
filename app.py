@@ -98,13 +98,7 @@ def makeWebhookResult(data):
 
 
 	
-    	date=item["forecast"][0].get("date")	
-	day	=item["forecast"][0].get("day")
-	atm	= channel.get('atmosphere')
-	umidita = atm.get('humidity')
-
-	celsius=int(condition.get('temp'))
-	Gc=int((celsius-32)/1.8)
+    	
 	
 
 
@@ -113,7 +107,7 @@ def makeWebhookResult(data):
 
 	
 	
-    speech =day+", "+date+"\n\nToday in " + location.get('city') + ": " + condition.get('text') + ".\nThe temperature is " + str(Gc)+ " C with a humidity of "+umidita+"%" + "prova prova Today the weather in " + location.get('city') + ": " + condition.get('text') + \
+    speech ="prova prova Today the weather in " + location.get('city') + ": " + condition.get('text') + \
              ", And the temperature is " + condition.get('temp') + " " + units.get('temperature')
 
     print("Response:")
